@@ -13,21 +13,20 @@ COPY . .
 FROM node:22.14.0-alpine AS tester
 WORKDIR /app
 COPY package*.json ./
-# Install all dependencies (including dev) for testing
 RUN npm ci
 COPY . .
 ENV PATH=/app/node_modules/.bin:$PATH
 CMD ["npm", "run", "test:ci"]
 
 # -------------------------
-# Builder stage: install all dependencies for building
+# Builder stage
 # -------------------------
-FROM node:22.14.0-alpine AS builder
+FROM base AS builder
 WORKDIR /app
 COPY package*.json ./
-# Install all deps including devDependencies temporarily for build
 RUN npm ci
 COPY . .
+# Build into "build" folder as per tsconfig.json
 RUN npm run build
 
 # -------------------------
@@ -35,7 +34,8 @@ RUN npm run build
 # -------------------------
 FROM node:22.14.0-alpine AS production
 WORKDIR /app
-COPY --from=builder /app/dist ./dist
+# Copy the actual output folder "build" instead of "dist"
+COPY --from=builder /app/build ./dist
 COPY --from=base /app/node_modules ./node_modules
 USER node
 CMD ["node", "dist/index.js"]
