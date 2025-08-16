@@ -7,7 +7,6 @@
     "build": "tsc",
     "build:dev": "tsc -w",
     "prestart": "npm run build",
-    "prepare": "npm run build",
     "start": "node -r ts-node/register ./src/index.ts",
     "start:dev": "nodemon --config tooling/nodemon.json --inspect",
     "test": "jest -c tooling/jest.config.js",
