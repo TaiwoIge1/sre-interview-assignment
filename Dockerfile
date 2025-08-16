@@ -1,45 +1,42 @@
-# First stage - create the base layer
+# First stage - base deps
 FROM node:22.14.0-alpine as base
 
-# Set the non-root user
+# Create app directory and set non-root user
+WORKDIR /app
+COPY package*.json ./
+
+# Install deps
+RUN npm ci
+
+# Copy source
+COPY . .
+
+# -------------------------
+# Test stage
+# -------------------------
+FROM base as test
+# Run tests (with CI flags for consistency)
+RUN npm run test:ci
+
+# -------------------------
+# Build stage
+# -------------------------
+FROM base as build
+RUN npm run build
+
+# -------------------------
+# Production runtime
+# -------------------------
+FROM node:22.14.0-alpine as prod
+
+# Create and set working dir
+WORKDIR /app
+COPY --from=build /app ./
+
+# Only copy node_modules from base (built with npm ci)
+COPY --from=base /app/node_modules ./node_modules
+
+# Use non-root user
 USER node
 
-# Create and set the working directory and set non-root user as owner
-RUN mkdir /home/node/app && chown -R node:node /home/node/app
-WORKDIR /home/node/app
-
-# Second stage - build environment and apply permissions
-FROM base as builder
-
-# Copy the required source and configuration to set up the build
-COPY --chown=node:node      \
-    package.json            \
-    tsconfig.json           \
-    ./
-COPY --chown=node:node src ./src
-
-# Execute the NPM install
-RUN npm install && npm cache clean --force --loglevel=error
-
-# Third stage - setup and run environment
-FROM base
-
-# Set the port the web server will listen on
-ARG PORT=8080
-ENV PORT $PORT
-
-# Set the node environment, either development or production
-# Defaults to production, compose overrides this to development on build and run
-ARG NODE_ENV=production
-ENV NODE_ENV=${NODE_ENV}
-
-# Only copy the config, built artifacts and node_modules from the first stage to reduce the container size
-COPY --chown=node:node ./config ./config
-COPY --from=builder /home/node/app/build ./build
-COPY --from=builder /home/node/app/node_modules ./node_modules
-
-# Expose the port as set
-EXPOSE $PORT
-
-# Do not encapsulate in NPM commands in order to receive / handle process signals
-CMD [ "node", "./build/index.js" ]
+CMD ["node", "dist/index.js"]
