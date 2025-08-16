@@ -43,7 +43,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          target: test
+          target: tester
           tags: test-image:latest
           load: true
           cache-from: type=gha
