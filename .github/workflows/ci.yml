@@ -11,7 +11,6 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:14
@@ -22,7 +21,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready -U swapi
+          --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -31,7 +30,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache npm
+      - name: Cache npm dependencies
         uses: actions/cache@v4
         with:
           path: ~/.npm
@@ -42,43 +41,54 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # -------------------------
-      # Run tests
-      # -------------------------
+      # Build test image (with caching)
       - name: Build test image
-        run: docker build --target test -t app:test .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: test
+          tags: app:test
+          load: true # needed to run container locally
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Run tests
         run: |
           docker run --rm \
             --network host \
             -e DATABASE_URL=postgres://swapi:password@localhost:5432/swapi \
-            app:test
+            -v $PWD:/home/node/app \
+            -w /home/node/app \
+            app:test npm test
 
-      - name: Publish JUnit Report
+      - name: Publish Test Results
         if: always()
         uses: mikepenz/action-junit-report@v4
         with:
           report_paths: 'junit.xml'
           require_tests: true
 
-      - name: Upload test results (artifact)
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: junit.xml
 
-      # -------------------------
-      # Build & push production image (only main branch)
-      # -------------------------
+      # Push release image only from main branch
       - name: Log in to ttl.sh
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: echo "${{ secrets.TTL_SH_TOKEN }}" | docker login ttl.sh -u anonymous --password-stdin
 
-      - name: Build & Push Prod Image
+      - name: Build and push release image
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          IMAGE_NAME=ttl.sh/floatschedule-sre-assignment:${{ github.sha }}
-          docker build --target production -t $IMAGE_NAME .
-          docker push $IMAGE_NAME
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: production
+          tags: ttl.sh/floatschedule-sre-assignment:${{ github.sha }}
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
