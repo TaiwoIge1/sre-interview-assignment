@@ -51,10 +51,8 @@ jobs:
         run: |
           docker run --rm \
             -e DATABASE_URL=postgres://swapi:password@postgres:5432/swapi \
-            --link postgres:postgres \
-            -v "$PWD":/app \
-            -w /app \
             test-image:latest
+
 
       - name: Upload test results (JUnit)
         if: always()
