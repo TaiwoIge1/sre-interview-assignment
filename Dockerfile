@@ -12,27 +12,21 @@ COPY . .
 # -------------------------
 FROM node:22.14.0-alpine AS tester
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-
-# Install all deps (including dev) for testing
+# Install all dependencies (including dev) for testing
 RUN npm ci
-
-# Copy source
 COPY . .
-
-# Make sure .bin is in PATH
 ENV PATH=/app/node_modules/.bin:$PATH
-
-# Default command: run tests
 CMD ["npm", "run", "test:ci"]
 
 # -------------------------
-# Builder stage
+# Builder stage: install all dependencies for building
 # -------------------------
-FROM base AS builder
+FROM node:22.14.0-alpine AS builder
 WORKDIR /app
+COPY package*.json ./
+# Install all deps including devDependencies temporarily for build
+RUN npm ci
 COPY . .
 RUN npm run build
 
