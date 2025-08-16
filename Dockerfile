@@ -1,42 +1,57 @@
-# First stage - base deps
-FROM node:22.14.0-alpine as base
-
-# Create app directory and set non-root user
-WORKDIR /app
-COPY package*.json ./
-
-# Install deps
-RUN npm ci
-
-# Copy source
-COPY . .
-
 # -------------------------
-# Test stage
+# Base deps stage
 # -------------------------
-FROM base as test
-# Run tests (with CI flags for consistency)
-RUN npm run test:ci
+    FROM node:22.14.0-alpine AS base
 
-# -------------------------
-# Build stage
-# -------------------------
-FROM base as build
-RUN npm run build
-
-# -------------------------
-# Production runtime
-# -------------------------
-FROM node:22.14.0-alpine as prod
-
-# Create and set working dir
-WORKDIR /app
-COPY --from=build /app ./
-
-# Only copy node_modules from base (built with npm ci)
-COPY --from=base /app/node_modules ./node_modules
-
-# Use non-root user
-USER node
-
-CMD ["node", "dist/index.js"]
+    # Set working directory
+    WORKDIR /app
+    
+    # Install dependencies (use package-lock.json for reproducibility)
+    COPY package*.json ./
+    RUN npm ci --only=production
+    
+    # Copy all source (later stages may override dependencies)
+    COPY . .
+    
+    # -------------------------
+    # Test stage
+    # -------------------------
+    FROM node:22.14.0-alpine AS test
+    WORKDIR /app
+    
+    # Copy in lockfile + deps
+    COPY package*.json ./
+    RUN npm ci
+    
+    # Copy source
+    COPY . .
+    
+    # Run tests
+    CMD ["npm", "run", "test:ci"]
+    
+    # -------------------------
+    # Build stage
+    # -------------------------
+    FROM node:22.14.0-alpine AS build
+    WORKDIR /app
+    
+    COPY package*.json ./
+    RUN npm ci
+    
+    COPY . .
+    RUN npm run build
+    
+    # -------------------------
+    # Production runtime
+    # -------------------------
+    FROM node:22.14.0-alpine AS production
+    WORKDIR /app
+    
+    # Copy build output & runtime deps only
+    COPY --from=build /app/dist ./dist
+    COPY --from=build /app/package*.json ./
+    COPY --from=base /app/node_modules ./node_modules
+    
+    USER node
+    CMD ["node", "dist/index.js"]
+    
