@@ -50,8 +50,8 @@ jobs:
       - name: Run tests inside container
         run: |
           docker run --rm \
-            --network host \
-            -e DATABASE_URL=postgres://swapi:password@localhost:5432/swapi \
+            -e DATABASE_URL=postgres://swapi:password@postgres:5432/swapi \
+            --link postgres:postgres \
             -v "$PWD":/app \
             -w /app \
             test-image:latest
