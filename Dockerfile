@@ -34,7 +34,7 @@ RUN npm run build
 # -------------------------
 FROM node:22.14.0-alpine AS production
 WORKDIR /app
-# Copy the actual output folder "build" instead of "dist"
+# Copy the actual output folder "build"
 COPY --from=builder /app/build ./dist
 COPY --from=base /app/node_modules ./node_modules
 USER node
