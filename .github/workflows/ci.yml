@@ -69,8 +69,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
 
-      - name: Log in to ttl.sh
-        run: echo "${{ secrets.TTL_SH_TOKEN }}" | docker login ttl.sh -u anonymous --password-stdin
+      - name: Log in to ttl.sh anonymously
+        run: echo "" | docker login ttl.sh -u anonymous --password-stdin
 
       - name: Build & push release image
         uses: docker/build-push-action@v6
