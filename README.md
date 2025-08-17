@@ -9,8 +9,8 @@
 
 ### Clone the Repository:
 ```bash
-git clone <your-private-fork-url>
-cd <repository-directory>
+git clone https://github.com/TaiwoIge1/sre-interview-assignment.git
+cd sre-interview-assignment
 ```
 
 ### Using Docker Compose:
