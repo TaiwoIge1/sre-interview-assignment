@@ -1,77 +1,119 @@
-# Float SRE Team - Interview Assignment
+# Instructions for Running and Testing the Solution
 
-Welcome to the Float SRE Team - Interview Assignment! 
+## Running the Application Locally
 
-## Problem Statement
+### Prerequisites:
+- Docker and Docker Compose installed.
+- Node.js (v22.14.0 recommended) for local development without Docker.
+- Git to clone the repository.
 
-The Float development team has built this application and now they want to:
+### Clone the Repository:
+```bash
+git clone <your-private-fork-url>
+cd <repository-directory>
+```
 
-- Run the application’s tests in GitHub Actions.
-- Build and publish an image whenever a branch is merged to `main`.
+### Using Docker Compose:
+The docker-compose.yml sets up a Postgres database and the API service.
 
-They need support from the SRE team to set this up.
+Run the application in development mode:
+```bash
+docker-compose up --build
+```
 
-### Task Description
+This builds the API image with `NODE_ENV=development` and maps port 3000 for the API and 5432 for Postgres.
 
-Build a CI pipeline for the application that developers can reuse for other applications.
+The API will be accessible at http://localhost:3000.
 
----
-
-### Basic Requirements
-
-Your solution **must** meet all of the following:
-
-1. **Run tests inside the image being built for use**.
-2. **Run tests against every branch** (every push to any branch, not only `main`).
-3. **If tests pass, build a new release image** and push it to a container registry (`ttl.sh` recommended).
-4. **Provide a way for developers to see test results promptly** (e.g., in PRs or elsewhere).
-
-### Image Registry
-
-We recommend using [`ttl.sh`](https://ttl.sh/) as a free container registry with a low TTL (e.g., 1 minute).
-
----
-
-### Evaluation Criteria
-
-Your submission will be scored against the following:
-
-- **Usability** – Developers receive actionable feedback from the pipeline (e.g., PR comments, Slack notifications, clear logs).
-- **Security Best Practices** – Secrets handled appropriately; no sensitive values committed to the repo.
-- **Scalability & Robustness** – Efficient build times, caching, parallelism, and resilience against common errors.
-- **Maintainability** – Clean, modular, and reusable code with clear documentation.
-- **Git Commit Best Practices** – Logical, granular commits with meaningful messages.
+The Postgres database uses the credentials:
+- POSTGRES_USER=swapi
+- POSTGRES_PASSWORD=password
+- POSTGRES_DB=swapi
 
 ---
 
-### Out of Scope
+## Running Tests Locally
 
-- Application deployment.
+### With Docker:
+```bash
+docker build --target tester -t test-image:latest .
+docker run --rm -e DATABASE_URL=postgres://swapi:password@localhost:5432/swapi test-image:latest
+```
+(Note: Ensure Postgres is running via `docker-compose up` or a local Postgres instance.)
+
+### Without Docker:
+```bash
+npm install
+npm run test
+```
+
+For continuous testing during development:
+```bash
+npm run test:watch
+```
+
+For test coverage:
+```bash
+npm run test:coverage
+```
 
 ---
 
-### Submission
+## Accessing the Application
 
-Please include:
+The API exposes endpoints like `/species`, `/species/:id`, and `/planets/:id/destruction` as tested in `api.integration.test.ts`.
 
-- Instructions for running and testing your solution.
-- Any notes on additional features you would have added if you had more time.
-- **Highly encouraged**: Record a short loom video (5 mins max) covering:
-    - Your overall approach to solving the problem.
-    - Key design decisions and trade-offs you made.
-    - Anything you would do differently or add if you had more time.
-- Please aim to complete the assignment within 2 hours. We aren’t looking for perfection, we just want to see what you can do within that timeframe.
-- Kindly send your submission to Julia via email within 3–4 days. If you need more time, just let us know; we’re happy to accommodate!
+Example:
+```bash
+curl http://localhost:3000/species
+```
+to retrieve species data.
 
-Once we receive your completed assignment, we’ll send a small token of appreciation to thank you for the time and effort you’ve invested. We really appreciate it!
+---
 
-### AI Use Expectations
+## Testing the CI Pipeline
 
-We expect that you may use AI tools (such as GitHub Copilot, ChatGPT, etc.) as part of your workflow.
+The CI pipeline is defined in `.github/workflows/ci.yml`.
 
-Please follow these guidelines:
+- It runs automatically on every push to any branch and on pull requests.
+- Test results are output in JUnit format (`junit.xml`) and uploaded as artifacts in GitHub Actions for visibility in PRs.
+- On pushes to the `main` branch, a production image is built and pushed to `ttl.sh/floatschedule-sre-assignment:<commit-sha>`.
 
-1. **Use AI as you normally would** in your day-to-day work.
-2. In your submission, share **how AI contributed** to your final solution — for example, whether it helped with code generation, debugging, or research.
-3. The focus is on a **demonstration covering all requirements**, not a production-ready or fully polished solution.
-4. Thoughtful, appropriate use of AI is acceptable and encouraged — but you must **fully understand and take ownership** of the final solution.
+---
+
+## Verifying the Container Registry
+
+After a successful push to main, the production image is available at:
+```
+ttl.sh/floatschedule-sre-assignment:<commit-sha>
+```
+
+You can pull and run the image:
+```bash
+docker pull ttl.sh/floatschedule-sre-assignment:<commit-sha>
+docker run -p 3000:3000 -e DATABASE_URL=postgres://swapi:password@<postgres-host>:5432/swapi ttl.sh/floatschedule-sre-assignment:<commit-sha>
+```
+
+---
+
+## Notes on Additional Features
+
+### Enhanced Test Reporting:
+- Integrate a GitHub Action to post test coverage reports as PR comments using tools like **codecov** or **coveralls**.
+- Add visual test result dashboards (e.g., using **Allure reports**) for better developer feedback.
+
+### Security Improvements:
+- Add a `docker-compose.prod.yml` for production-like local testing with minimal dependencies and locked-down permissions.
+- Implement image scanning in the CI pipeline (e.g., using **Trivy**) to detect vulnerabilities in dependencies or the base image.
+
+### CI Optimizations:
+- Use multi-stage caching more aggressively to speed up builds by separating dependency installation and code copying.
+- Parallelize test execution across multiple runners to reduce CI runtime for larger test suites.
+
+### Monitoring and Logging:
+- Add health check endpoints to the API and configure them in the Dockerfile (`HEALTHCHECK` instruction).
+- Integrate structured logging (e.g., using **pino**) and expose logs to a centralized system for debugging CI failures.
+
+### Environment Flexibility:
+- Parameterize the container registry URL and image tags via GitHub Actions secrets or environment variables for reusability across projects.
+- Add support for multiple database backends (e.g., MySQL as an alternative to Postgres) to make the pipeline more reusable.
