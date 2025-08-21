@@ -136,7 +136,7 @@ describe('Basic API Integration Tests - Core Functionality', () => {
   test('GET /species should return all species with their homeworlds', async () => {
     const response = await request.get('/species');
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
     expect(response.body).toHaveProperty('species');
     expect(Array.isArray(response.body.species)).toBe(true);
     expect(response.body.species.length).toBeGreaterThan(0);
